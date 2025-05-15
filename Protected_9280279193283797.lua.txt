@@ -1,10 +1,12 @@
 local Player = game.Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
+local Head = Character:WaitForChild("Head")
 local Camera = workspace.CurrentCamera
 local UserInputService = game:GetService("UserInputService")
 
-local RimModel = workspace.Important.Court1.Hoops.Hoop2.Rim.RimModel
+local NetTarget = workspace.Important.Court1.Nets.Net:GetChildren()[2]
+local GoalTarget = workspace.Important.Court1.Hoops.Hoop2.Goal
 
 local PCArcValues = {
     [59] = 30, [60] = 30, [61] = 30, [62] = 30,
@@ -19,25 +21,38 @@ local function HasBasketball()
     return Character and Character:FindFirstChild("Basketball")
 end
 
-local function ExecuteMobileCamlock()
+local function GetClosestTarget()
+    local pos = Head.Position
+    local d1 = (NetTarget.Position - pos).Magnitude
+    local d2 = (GoalTarget.Position - pos).Magnitude
+    return d1 < d2 and NetTarget or GoalTarget
+end
+
+local function LockCameraAndCursor()
     if not HasBasketball() then return end
 
-    local playerPos = Character.HumanoidRootPart.Position
-    local hoopPos = RimModel.Position
-    local distance = math.floor((playerPos - hoopPos).Magnitude)
+    local target = GetClosestTarget()
+    local hoopPos = target.Position
+    local distance = math.floor((Character.HumanoidRootPart.Position - hoopPos).Magnitude)
     if distance > 73 then return end
 
     local arc = PCArcValues[distance] or 20
     local basketPos = hoopPos + Vector3.new(0, arc, 0)
 
-    Camera.CFrame = CFrame.new(Character.HumanoidRootPart.Position + Vector3.new(0, 2, 0), basketPos)
+    Camera.CameraType = Enum.CameraType.Scriptable
+    Camera.CFrame = CFrame.new(Head.Position, basketPos)
+    UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+end
+
+local function UnlockCameraAndCursor()
+    Camera.CameraType = Enum.CameraType.Custom
+    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 end
 
 Humanoid.StateChanged:Connect(function(_, newState)
     if newState == Enum.HumanoidStateType.Jumping then
-        ExecuteMobileCamlock()
-        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        LockCameraAndCursor()
     elseif newState == Enum.HumanoidStateType.Freefall or newState == Enum.HumanoidStateType.Landed then
-        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        UnlockCameraAndCursor()
     end
 end)
